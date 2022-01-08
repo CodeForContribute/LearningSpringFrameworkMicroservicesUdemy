@@ -1,11 +1,17 @@
 package com.github.raushaniiitu.restwebsesrvices.user;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.hateoas.EntityModel;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
 
+//import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
+import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import javax.validation.Valid;
+import java.net.URI;
 import java.util.List;
 
 @RestController
@@ -22,7 +28,33 @@ public class UserResource {
 
     // retrieveUser(id)
     @RequestMapping(method = RequestMethod.GET, path = "/users/{id}")
-    public User getUser(@PathVariable int id) {
-        return service.findOne(id);
+    public EntityModel<User> getUser(@PathVariable int id) {
+        User user = service.findOne(id);
+        if (user == null) throw new UserNotFoundException("id-" + id);
+        EntityModel<User> entityModel = EntityModel.of(user);
+        WebMvcLinkBuilder linkToUsers = linkTo(methodOn(this.getClass()).retrieveAllUsers());
+        entityModel.add(linkToUsers.withRel("all-users"));
+        return entityModel;
     }
+
+    // input - details of the user
+    //created and return the created URI
+    @RequestMapping(method = RequestMethod.POST, path = "/users")
+    public ResponseEntity<Object> createUser(@Valid @RequestBody User user) {
+        User savedUser = service.save(user);
+        URI location = ServletUriComponentsBuilder
+                .fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(savedUser.getId()).toUri();
+        return ResponseEntity.created(location).build();
+    }
+
+    @DeleteMapping("/users/{id}")
+    public void deleteUser(@PathVariable int id) {
+        User user = service.deleteById(id);
+        System.out.println("user");
+        if (user == null) throw new UserNotFoundException("id-" + id);
+    }
+
+
 }
